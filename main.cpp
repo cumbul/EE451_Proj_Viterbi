@@ -38,4 +38,18 @@ int main()
     std::cout << "True answer: ";
     for (std::string s: true_ans) std::cout << s << " ";
     std::cout << std::endl;
+
+    viterbi = Viterbi(Util::getToyExample2());
+    std::vector<std::string> input3 = Util::getToyExample2_Test();
+    std::cout << "Input 3: ";
+    for (std::string s: input3) std::cout << s << " ";
+    std::cout << std::endl;
+    my_ans = viterbi.solve(input3);
+    std::cout << "My answer: ";
+    for (std::string s: my_ans) std::cout << s << " ";
+    std::cout << std::endl; 
+    true_ans = Util::getToyExample2_Ans();
+    std::cout << "True answer: ";
+    for (std::string s: true_ans) std::cout << s << " ";
+    std::cout << std::endl;
 }

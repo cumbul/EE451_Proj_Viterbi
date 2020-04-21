@@ -34,6 +34,10 @@ namespace Util{
     const std::vector<std::string> getToyExample1_Ans1();
     const std::vector<std::string> getToyExample1_Test2();
     const std::vector<std::string> getToyExample1_Ans2();
+
+    HMM getToyExample2();
+    const std::vector<std::string> getToyExample2_Test();
+    const std::vector<std::string> getToyExample2_Ans();
 }
 
 #endif

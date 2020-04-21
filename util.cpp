@@ -159,3 +159,83 @@ const std::vector<std::string> Util::getToyExample1_Ans2()
         result.push_back(std::string(1, c));
     return result;  
 }
+
+/****************************
+Toy HMM 2 model for testing
+****************************/
+//return HMM model in page 155 of https://web.stanford.edu/~jurafsky/slp3/ed3book.pdf 
+HMM Util::getToyExample2()
+{
+    Table test_trans_prob{
+		{"NNP",
+            {{"NNP", 0.3777}, {"MD", 0.0110}, {"VB", 0.0009}, {"JJ", 0.0084}, {"NN", 0.0584}, {"RB", 0.0090}, {"DT", 0.0025}}
+        },
+		{"MD",
+            {{"NNP", 0.0008}, {"MD", 0.0002}, {"VB", 0.7968}, {"JJ", 0.0005}, {"NN", 0.0008}, {"RB", 0.1698}, {"DT", 0.0041}}
+        },     
+		{"VB",
+            {{"NNP", 0.0322}, {"MD", 0.0005}, {"VB", 0.0050}, {"JJ", 0.0837}, {"NN", 0.0615}, {"RB", 0.0514}, {"DT", 0.2231}}
+        },
+		{"JJ",
+            {{"NNP", 0.0366}, {"MD", 0.0004}, {"VB", 0.0001}, {"JJ", 0.0733}, {"NN", 0.4509}, {"RB", 0.0036}, {"DT", 0.0036}}
+        },
+		{"NN",
+            {{"NNP", 0.0096}, {"MD", 0.0176}, {"VB", 0.0014}, {"JJ", 0.0086}, {"NN", 0.1216}, {"RB", 0.0177}, {"DT", 0.0068}}
+        },
+		{"RB",
+            {{"NNP", 0.0068}, {"MD", 0.0102}, {"VB", 0.1011}, {"JJ", 0.1012}, {"NN", 0.0120}, {"RB", 0.0728}, {"DT", 0.0479}}
+        },
+		{"DT",
+            {{"NNP", 0.1147}, {"MD", 0.0021}, {"VB", 0.0002}, {"JJ", 0.2157}, {"NN", 0.4744}, {"RB", 0.0102}, {"DT", 0.0017}}
+        }
+    };   
+    Table test_obs_prob{
+        {"NNP",
+            {{"Janet", 0.000032}, {"will", 0}, {"back", 0}, {"the", 0.000048}, {"bill", 0}}
+        },
+        {"MD",
+            {{"Janet", 0}, {"will", 0.308431}, {"back", 0}, {"the", 0}, {"bill", 0}}
+        },
+        {"VB",
+            {{"Janet", 0}, {"will", 0.000028}, {"back", 0.000672}, {"the", 0}, {"bill", 0.000028}}
+        },
+        {"JJ",
+            {{"Janet", 0}, {"will", 0}, {"back", 0.000340}, {"the", 0}, {"bill", 0}}
+        },
+        {"NN",
+            {{"Janet", 0}, {"will", 0.000200}, {"back", 0.000223}, {"the", 0}, {"bill", 0.002337}}
+        },
+        {"RB",
+            {{"Janet", 0}, {"will", 0}, {"back", 0.010446}, {"the", 0}, {"bill", 0}}
+        },
+        {"DT",
+            {{"Janet", 0}, {"will", 0}, {"back", 0}, {"the", 0.506099}, {"bill", 0}}
+        },
+    };
+    std::map<std::string, double> init_prob{
+        {"NNP", 0.2767}, {"MD", 0.0006}, {"VB", 0.0031}, {"JJ", 0.0453}, {"NN", 0.0449}, {"RB", 0.0510}, {"DT", 0.2026}
+    };
+    return HMM(test_trans_prob, test_obs_prob, init_prob);
+}
+
+const std::vector<std::string> Util::getToyExample2_Test()
+{
+    std::vector<std::string> result;
+    result.push_back("Janet");
+    result.push_back("will");
+    result.push_back("back");
+    result.push_back("the");
+    result.push_back("bill");
+    return result; 
+}
+
+const std::vector<std::string> Util::getToyExample2_Ans()
+{
+    std::vector<std::string> result;
+    result.push_back("NNP");
+    result.push_back("MD");
+    result.push_back("VB");
+    result.push_back("DT");
+    result.push_back("NN");
+    return result;
+}
