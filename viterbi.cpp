@@ -1,6 +1,7 @@
 #include "viterbi.h"
 #include <iostream>
 #include <math.h>
+#include <algorithm>
 
 Viterbi::Viterbi()
 {
@@ -42,7 +43,7 @@ std::vector<std::string> Viterbi::solve(const std::vector<std::string>& sequence
         for (int j = 0; j < state_size; j++)        //for each current state
         {
             std::string current_state = state_list[j];
-            double max_so_far = -9999999;
+            double max_so_far = -INFINITY;
             int max_so_far_index = 0;
             for (int k = 0; k < state_size; k++)        //go through all previous state
             {
