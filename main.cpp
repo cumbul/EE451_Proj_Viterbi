@@ -5,51 +5,58 @@
 #include "util.h"
 #include <map>
 
-//typedef std::map<std::string, std::map<std::string, float> > Table; 
+using namespace std;
+//typedef map<string, map<string, float> > Table; 
 
 int main()
 {
     Viterbi viterbi(Util::getToyExample1());
 
-    std::cout << "Vanilla Viterbi Test:" << std::endl;
+    cout << "Vanilla Viterbi Test:" << endl;
 
-    std::vector<std::string> input1 = Util::getToyExample1_Test1();
-    std::cout << "Input 1: ";
-    for (std::string s: input1) std::cout << s << " ";
-    std::cout << std::endl;
-    std::vector<std::string> my_ans = viterbi.solve(input1);
-    std::cout << "My answer: ";
-    for (std::string s: my_ans) std::cout << s << " ";
-    std::cout << std::endl;
-    std::vector<std::string> true_ans = Util::getToyExample1_Ans1();
-    std::cout << "True answer: ";
-    for (std::string s: true_ans) std::cout << s << " ";
-    std::cout << std::endl;
+    vector<string> input1 = Util::getToyExample1_Test1();
+    cout << "Input 1: ";
+    for (string s: input1) cout << s << " ";
+    cout << endl;
+    vector<string> my_ans = viterbi.solve(input1);
+    cout << "My answer: ";
+    for (string s: my_ans) cout << s << " ";
+    cout << endl;
+    vector<string> true_ans = Util::getToyExample1_Ans1();
+    cout << "True answer: ";
+    for (string s: true_ans) cout << s << " ";
+    cout << endl;
 
-    std::vector<std::string> input2 = Util::getToyExample1_Test2();
-    std::cout << "Input 2: ";
-    for (std::string s: input2) std::cout << s << " ";
-    std::cout << std::endl;
+    vector<string> input2 = Util::getToyExample1_Test2();
+    cout << "Input 2: ";
+    for (string s: input2) cout << s << " ";
+    cout << endl;
     my_ans = viterbi.solve(input2);
-    std::cout << "My answer: ";
-    for (std::string s: my_ans) std::cout << s << " ";
-    std::cout << std::endl; 
+    cout << "My answer: ";
+    for (string s: my_ans) cout << s << " ";
+    cout << endl; 
     true_ans = Util::getToyExample1_Ans2();
-    std::cout << "True answer: ";
-    for (std::string s: true_ans) std::cout << s << " ";
-    std::cout << std::endl;
+    cout << "True answer: ";
+    for (string s: true_ans) cout << s << " ";
+    cout << endl;
 
     viterbi = Viterbi(Util::getToyExample2());
-    std::vector<std::string> input3 = Util::getToyExample2_Test();
-    std::cout << "Input 3: ";
-    for (std::string s: input3) std::cout << s << " ";
-    std::cout << std::endl;
+    vector<string> input3 = Util::getToyExample2_Test();
+    cout << "Input 3: ";
+    for (string s: input3) cout << s << " ";
+    cout << endl;
     my_ans = viterbi.solve(input3);
-    std::cout << "My answer: ";
-    for (std::string s: my_ans) std::cout << s << " ";
-    std::cout << std::endl; 
+    cout << "My answer: ";
+    for (string s: my_ans) cout << s << " ";
+    cout << endl; 
     true_ans = Util::getToyExample2_Ans();
-    std::cout << "True answer: ";
-    for (std::string s: true_ans) std::cout << s << " ";
-    std::cout << std::endl;
+    cout << "True answer: ";
+    for (string s: true_ans) cout << s << " ";
+    cout << endl;
+
+    LTDPViterbi ltdp = LTDPViterbi(Util::getToyExample2(), 2);
+    my_ans = ltdp.solve(Util::getToyExample2_Test());
+    cout << "LTDP Viterbi: ";
+    for (string s: my_ans) cout << s << " ";
+    cout << endl;    
 }
