@@ -1,7 +1,7 @@
 PROG = main
 CC = g++
-FLAGS = -Wall -g
-OBJS = main.o viterbi.o parallel_viterbi.o
+FLAGS = -std=c++11 -Wall -g
+OBJS = main.o viterbi.o parallel_viterbi.o util.o
 
 (PROG) : $(OBJS)
 	$(CC) $(FLAGS) -o $(PROG) $(OBJS)
@@ -15,3 +15,9 @@ viterbi.o : viterbi.h
 
 parallel_viterbi.o : parallel_viterbi.h
 	$(CC) $(FLAGS) -c parallel_viterbi.cpp
+
+util.o : util.h
+	$(CC) $(FLAGS) -c util.cpp
+
+clean :
+	rm -f $(OBJS)
