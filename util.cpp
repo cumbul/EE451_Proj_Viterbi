@@ -1,6 +1,7 @@
 #include "util.h"
 #include <iostream>
 #include <string>
+
 /****************************
 Hidden Markov Model 
 ****************************/
@@ -217,6 +218,7 @@ HMM Util::getToyExample2()
     };
     return HMM(test_trans_prob, test_obs_prob, init_prob);
 }
+
 
 const vector<string> Util::getToyExample2_Test()
 {

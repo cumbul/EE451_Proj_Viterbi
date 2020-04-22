@@ -39,15 +39,15 @@ def generate(num1, num2):
 	str_observation  = json.dumps(observation_prob, indent=4, sort_keys=False)
 	str_init  = json.dumps(init_prob, indent=4, sort_keys=False)
 
-	file1 = open("data_transition.txt","w+") 
+	file1 = open("data_transition.json","w+") 
 	file1.write(str_trans)
 	file1.close()
 
-	file2 = open("data_observation.txt","w+") 
+	file2 = open("data_observation.json","w+") 
 	file2.write(str_observation)
 	file2.close()
 
-	file3 = open("data_init.txt","w+") 
+	file3 = open("data_init.json","w+") 
 	file3.write(str_init)
 	file3.close()
 
