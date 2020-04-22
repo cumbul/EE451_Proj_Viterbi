@@ -53,9 +53,11 @@ int main()
     cout << "True answer: ";
     for (string s: true_ans) cout << s << " ";
     cout << endl;
+    
 
-    LTDPViterbi ltdp = LTDPViterbi(Util::getToyExample2(), 2);
-    my_ans = ltdp.solve(Util::getToyExample2_Test());
+    cout << "Parallel Viterbi" << endl;
+    LTDPViterbi ltdp = LTDPViterbi(Util::getToyExample1(), 1);
+    my_ans = ltdp.solve(Util::getToyExample1_Test1());
     cout << "LTDP Viterbi: ";
     for (string s: my_ans) cout << s << " ";
     cout << endl;    
