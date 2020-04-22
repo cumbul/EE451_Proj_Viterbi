@@ -118,7 +118,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
         int tid = omp_get_thread_num()+1;
         double previous_stage[state_size], hold[state_size];
         int left_p = (seq_size / num_processor) * (tid - 1);
-        int right_p = (seq_size / num_processor) * tid;
+        int right_p = std::min((seq_size / num_processor) * tid, seq_size-1);
 	
         //Only the first processor gets the true initial probabilities. Other processors will get a random vector.
         if (tid == 1)
@@ -136,7 +136,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                 previous_stage[i] = (double)(rand() % 100) / 100.0;
         }
         
-        for (int i = left_p + 1; i < right_p; i++)
+        for (int i = left_p + 1; i <= right_p; i++)
         {
             for (int j = 0; j < state_size; j++)        //for each current state
             {
@@ -171,13 +171,13 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                 int tid = omp_get_thread_num() + 2;
                 conv[tid] = false;
                 int left_p = (seq_size / num_processor) * (tid - 1);
-                int right_p = (seq_size / num_processor) * tid;
+                int right_p = std::min((seq_size / num_processor) * tid, seq_size-1);
 
                 //obtain final solution from previous processor
                 double s[state_size], hold[state_size];
                 memcpy(s, viterbi[left_p], sizeof(double) * state_size);
 
-                for (int i = left_p + 1; i < right_p; i++)
+                for (int i = left_p + 1; i <= right_p; i++)
                 {
                     for (int j = 0; j < state_size; j++)        //for each current state
                     {

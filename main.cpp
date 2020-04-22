@@ -56,7 +56,7 @@ int main()
     
 
     cout << "Parallel Viterbi" << endl;
-    LTDPViterbi ltdp = LTDPViterbi(Util::getToyExample1(), 1);
+    LTDPViterbi ltdp = LTDPViterbi(Util::getToyExample1(), 2);
     my_ans = ltdp.solve(Util::getToyExample1_Test1());
     cout << "LTDP Viterbi: ";
     for (string s: my_ans) cout << s << " ";
