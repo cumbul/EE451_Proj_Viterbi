@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <cstring>
+#include <omp.h>
 #include <algorithm>
 #include "parallel_viterbi.h"
 
@@ -104,16 +106,20 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
         pred[i] = new int[state_size];
     }
 
+    for (int i = 0; i < seq_size; i++)
+    	for (int j = 0; j < state_size; j++)
+	    pred[i][j] = 0;
+
     for (int i = 0; i < num_processor; i++) conv[i] = false;
 
     //parallel forward phase
     #pragma omp parallel num_threads(num_processor) shared(state_list, obs_list, seq_size, state_size, viterbi, pred)
     {
-        int tid = 1;//omp_get_thread_num()+1;
+        int tid = omp_get_thread_num()+1;
         double previous_stage[state_size], hold[state_size];
         int left_p = (seq_size / num_processor) * (tid - 1);
         int right_p = (seq_size / num_processor) * tid;
-
+	
         //Only the first processor gets the true initial probabilities. Other processors will get a random vector.
         if (tid == 1)
         {
@@ -160,18 +166,18 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
         bool converged = false;
         do
         {
-            #pragma omp parallel num_threads(num_processor-1) shared(state_list, obs_list, seq_size, state_size, viterbi, pred, conv) private (tid, s)
+            #pragma omp parallel num_threads(num_processor-1) shared(state_list, obs_list, seq_size, state_size, viterbi, pred, conv)
             {
-                int tid = 1;//omp_get_thread_num() + 1;
+                int tid = omp_get_thread_num() + 2;
                 conv[tid] = false;
                 int left_p = (seq_size / num_processor) * (tid - 1);
                 int right_p = (seq_size / num_processor) * tid;
 
                 //obtain final solution from previous processor
-                double s[state_size];
+                double s[state_size], hold[state_size];
                 memcpy(s, viterbi[left_p], sizeof(double) * state_size);
 
-                for (int i = left_p + 1; i <= right_p; i++)
+                for (int i = left_p + 1; i < right_p; i++)
                 {
                     for (int j = 0; j < state_size; j++)        //for each current state
                     {
@@ -188,9 +194,11 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                                 max_so_far_index = k;
                             }
                         }
-                        s[j] = max_so_far;
+			hold[j] = max_so_far;
                         pred[i][j] = max_so_far_index;
                     }
+
+		    memcpy(s, hold, sizeof(double) * state_size);
 
                     if (_isParallel(s, viterbi[i], state_size))
                     {
