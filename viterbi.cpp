@@ -11,7 +11,6 @@ Viterbi::Viterbi()
 Viterbi::Viterbi(const HMM& hmm)
 {
     this->hmm = hmm;
-    cout << "Hello world from Viterbi!" << endl;
 }
 
 vector<string> Viterbi::solve(const vector<string>& sequence)

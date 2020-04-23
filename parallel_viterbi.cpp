@@ -13,80 +13,7 @@ Parallel Viterbi Algorithm using Linear Tropical Dynamic Programming
 LTDPViterbi::LTDPViterbi(const HMM& hmm, int num_processor) : ParallelViterbi(hmm, num_processor)
 {
     srand(time(NULL));
-    cout << "Hello world from LTDP Viterbi!" << endl;
-    cout << "Using " << num_processor << " processors." << endl;
-}
-
-int** LTDPViterbi::_forward_phase(const vector<string>& sequence)
-{
-    return nullptr;
-}
-
-vector<string> LTDPViterbi::_backward_phase(int** pred, int seq_size)
-{
-    /**
-    vector<string> state_list = hmm.get_state_list();
-    vector<string> obs_list = hmm.get_observation_list();
-    bool conv[num_processor];
-    int res[seq_size];
-
-    cout << "Test7" << endl;
-    #pragma omp parallel num_threads(num_processor)
-    {
-        int tid = 1;//omp_get_thread_num()+1;
-        int left_p = (seq_size / num_processor) * (tid - 1);
-        int right_p = (seq_size / num_processor) * tid; 
-        int x = 0;
-        for (int i = right_p; i > left_p + 1; i--)
-        {
-            res[i] = x = pred[i][x];      
-        }
-    }
-
-    cout << "Test8" << endl;
-    // till  convergence (fix up loop)
-    bool converged = false;
-    do
-    {
-        #pragma omp parallel num_threads(num_processor-1)
-        {
-            int tid = 1;//omp_get_thread_num() + 1;
-            conv[tid] = false;
-            int left_p = (seq_size / num_processor) * (tid - 1);
-            int right_p = (seq_size / num_processor) * tid;
-
-            cout << "Test8a" << endl;
-            //obtain final result from next processor
-            int x = res[right_p+1];
-            for (int i = right_p-1; i > left_p; i--)
-            {
-                x = pred[i][x];
-                cout << "Test8b" << endl;
-                if (res[i] == x)
-                {
-                    conv[tid] = true;
-                    break;
-                }
-                res[i] = x;
-            }
-        }
-        cout << "Test9" << endl;
-        converged = conv[0];
-        for (int i = 1; i < num_processor; i++)
-            converged = converged && conv[i];
-    } while (converged);
-
-    //clean up
-    for (int i = 0; i < seq_size; i++)
-        delete [] pred[i];
-    delete [] pred;
-
-    vector<string> result;
-    for (int i : res)
-        result.push_back(state_list[i]);
-    return result; 
-    */
-   return vector<string>();
+    cout << "LTDP Viterbi: Using " << num_processor << " processors." << endl;
 }
 
 vector<string> LTDPViterbi::solve(const vector<string>& sequence)
@@ -194,7 +121,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                                 max_so_far_index = k;
                             }
                         }
-			hold[j] = max_so_far;
+			            hold[j] = max_so_far;
                         pred[i][j] = max_so_far_index;
                     }
 
@@ -207,14 +134,14 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                     }
                 }
             }
-            converged = conv[0];
-            for (int i = 1; i < num_processor; i++)
+            converged = conv[2];
+            for (int i = 2; i < num_processor; i++)
                 converged = converged && conv[i];
-        } while (converged);
+        } while (!converged);
     }
 
     //backtracking
-    vector<string> answer;
+    vector<string> answer(seq_size);
     double bestprob = viterbi[seq_size-1][0];
     int bestpathpointer = 0;
     for (int i = 0; i < state_size; i++)
@@ -228,7 +155,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
     
     for (int i = seq_size; i > 0; i--)
     {
-        answer.push_back(state_list[bestpathpointer]);
+        answer[i] = state_list[bestpathpointer];
         bestpathpointer = pred[i-1][bestpathpointer];
     }
     reverse(answer.begin(), answer.end());
@@ -255,6 +182,5 @@ bool LTDPViterbi::_isParallel(double* A, double* B, int size)
         if (fabs(diff - delta) > EPSILON)
             return false;
     }
-    //cout << "Congrats! We found a parallel vector." << endl;
     return true;
 }
