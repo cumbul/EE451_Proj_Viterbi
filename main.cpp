@@ -10,6 +10,7 @@ using namespace std;
 
 int main()
 {
+    /*
     Viterbi viterbi(Util::getToyExample1());
 
     cout << "Vanilla Viterbi Test:" << endl;
@@ -61,4 +62,16 @@ int main()
     cout << "LTDP Viterbi: ";
     for (string s: my_ans) cout << s << " ";
     cout << endl;    
+    */
+    HMM hmm = Util::getRandomHMM(8, 15);
+    vector<string> seq = Util::getRandomSequence(hmm, 20);
+    for (string str: seq)
+        cout << str << " ";
+    cout << endl;
+
+    Viterbi viterbi(hmm);
+    vector<string> my_ans = viterbi.solve(seq);
+    for (string str: my_ans)
+        cout << str << " ";
+    cout << endl;
 }

@@ -40,6 +40,9 @@ namespace Util{
     HMM getToyExample2();
     const vector<string> getToyExample2_Test();
     const vector<string> getToyExample2_Ans();
+
+    HMM getRandomHMM(int num_state, int num_obs);
+    vector<string> getRandomSequence(HMM& hmm, int num_steps);
 }
 
 #endif

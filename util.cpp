@@ -239,3 +239,136 @@ const vector<string> Util::getToyExample2_Ans()
     result.push_back("NN");
     return result;
 }
+
+HMM Util::getRandomHMM(int num_state, int num_obs)
+{
+    // generate states
+    Table trans_prob;
+    for(int i = 0; i<num_state; i++)
+    {
+
+        string name_from = "State" + to_string(i);
+        double probs[num_state];
+        double sum = 0.0;
+        // Create array of random numbers
+        for(int j=0;j<num_state;j++)
+        {
+            srand(((i+10)*(j+1)) * 2654435789 + i);
+            probs[j]=( rand() % 100) + 1;
+            sum += probs[j];
+        }
+        // Divide each element to sum 
+        for(int i=0;i<num_state;i++)
+        {
+            probs[i] /= sum;
+        }
+        map<string,double> states;
+        trans_prob.insert(make_pair(name_from, states));
+        for (int j = 0; j<num_state; j++)
+        {
+            string name_to = "State" + to_string(j);
+            
+            trans_prob[name_from].insert(make_pair(name_to,probs[j]));
+        }
+    }
+
+    // generate observations
+    Table obs_prob;
+    for(int i = 0; i<num_state; i++)
+    {
+
+        string name_from = "State" + to_string(i);
+        double probs[num_obs];
+        double sum = 0.0;
+        // Create array of random numbers
+        for(int j=0;j<num_obs;j++)
+        {
+            srand(((i+10)*(j+1)) * 90234859028 + i);
+            probs[j]=( rand() % 100) + 1;
+            sum += probs[j];
+        }
+        // Divide each element to sum 
+        for(int i=0;i<num_obs;i++)
+        {
+            probs[i] /= sum;
+        }
+        map<string,double> states;
+        obs_prob.insert(make_pair(name_from, states));
+        for (int j = 0; j<num_obs; j++)
+        {
+            string name_to = "Obs" + to_string(j);
+            
+            obs_prob[name_from].insert(make_pair(name_to,probs[j]));
+        }
+    }
+    // generate initial value
+    map<string, double> init_prob;
+    double probs[num_state];
+    double sum = 0.0;
+    // Create array of random numbers
+    for(int j=0;j<num_state;j++)
+    {
+        srand((10*(j+1)) * 90234859028 + j);
+        probs[j]=( rand() % 100) + 1;
+        sum += probs[j];
+    }
+    // Divide each element to sum 
+    for(int i=0;i<num_state;i++)
+    {
+        probs[i] /= sum;
+    }
+
+    for(int i = 0; i<num_state; i++)
+    {
+        string name_from = "State" + to_string(i);
+        init_prob.insert(make_pair(name_from, probs[i]));
+    }
+    return HMM(trans_prob, obs_prob, init_prob);
+}
+
+vector<string> Util::getRandomSequence(HMM& hmm, int num_steps)
+{
+    vector<string> state_list = hmm.get_state_list();
+    vector<string> obs_list = hmm.get_observation_list();
+    vector<string> result;
+    string curr_state;
+
+    srand(time(NULL));
+    double roll, x, new_x;
+    int i = 0;
+
+    while (i < num_steps)
+    {
+        //get to the next state
+        roll = (double)(rand() % 100) / 100.0;
+        x = 0.0;
+        new_x = 0.0;     
+        for (string state : state_list)
+        {
+            new_x = (i == 0)? x + hmm.get_init_prob(state): x + hmm.get_trans_prob(curr_state, state);
+            if (x <= roll && roll < new_x)
+            {
+                curr_state = state;
+                break;
+            }
+            x = new_x;
+        }
+
+        //get state's emission
+        roll = (double)(rand() % 100) / 100.0;
+        x = 0.0;
+        new_x = 0.0;
+        for (string obs: obs_list)
+        {
+            new_x = x + hmm.get_obs_prob(curr_state, obs);
+            if (x <= roll && roll < new_x)
+            {
+                result.push_back(obs);
+                break;
+            }
+            x = new_x;
+        }
+        i++;
+    }
+    return result;
+}
