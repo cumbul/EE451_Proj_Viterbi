@@ -207,14 +207,14 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                     }
                 }
             }
-            converged = conv[0];
-            for (int i = 1; i < num_processor; i++)
+            converged = conv[2];
+            for (int i = 2; i < num_processor; i++)
                 converged = converged && conv[i];
         } while (!converged);
     }
 
     //backtracking
-    vector<string> answer[seq_size];
+    vector<string> answer(seq_size);
     double bestprob = viterbi[seq_size-1][0];
     int bestpathpointer = 0;
     for (int i = 0; i < state_size; i++)
@@ -223,7 +223,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
         {
             bestprob = viterbi[seq_size-1][i];
             bestpathpointer = i;
-        }
+         }
     }
     
     if (num_processor == 1)
@@ -236,6 +236,9 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
     }
     else
     {
+	answer[seq_size-1] = state_list[bestpathpointer];
+	bool converged = false;
+	int result[seq_size];
         for (int i = 0; i < num_processor; i++) conv[i] = false;
         #pragma omp parallel num_threads(num_processor) shared(state_list, obs_list, seq_size, state_size, viterbi, pred)
         {
@@ -244,9 +247,9 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
             int right_p = std::min((seq_size / num_processor) * tid, seq_size-1);
 
             int x = (tid == num_processor-1)? bestpathpointer: 0;
-            for (int i = right_p; i >= left_p; i--)
+            for (int i = right_p; i >= left_p + 1; i--)
             {
-                result[i] = x = pred[i][bestpathpointer];
+		result[i - 1] = x = pred[i][x];
             }
         }
         // till  convergence (fix up loop)
@@ -264,18 +267,23 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
                 for (int i = right_p; i >= left_p + 1; i--)
                 {
                     x = pred[i][x];
-                    if (result[i] == x)
+                    if (result[i - 1] == x)
                     {
                         conv[tid] = true;
                         break;
                     }
-                    result[i] = x;
+                    result[i - 1] = x;
                 }
-            converged = conv[0];
+            converged = conv[1];
             for (int i = 1; i < num_processor; i++)
                 converged = converged && conv[i];
             }
         } while (!converged);
+	for (int i = 0; i < seq_size-1; i++)
+	{
+	    answer[i] = state_list[result[i]];
+	}
+	cout << endl;
     }
     
     //clean up
