@@ -96,7 +96,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
             #pragma omp parallel num_threads(num_processor-1) shared(state_list, obs_list, seq_size, state_size, viterbi, pred, conv)
             {
                 int tid = omp_get_thread_num() + 2;
-                conv[tid] = false;
+                conv[tid-2] = false;
                 int left_p = (seq_size / num_processor) * (tid - 1);
                 int right_p = std::min((seq_size / num_processor) * tid, seq_size-1);
 
@@ -129,13 +129,13 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
 
                     if (_isParallel(s, viterbi[i], state_size))
                     {
-                        conv[tid] = true;
+                        conv[tid-2] = true;
                         break;
                     }
                 }
             }
-            converged = conv[2];
-            for (int i = 2; i < num_processor; i++)
+            converged = conv[0];
+            for (int i = 0; i < num_processor-1; i++)
                 converged = converged && conv[i];
         } while (!converged);
     }
@@ -155,10 +155,9 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
     
     for (int i = seq_size; i > 0; i--)
     {
-        answer[i] = state_list[bestpathpointer];
+        answer[i-1] = state_list[bestpathpointer];
         bestpathpointer = pred[i-1][bestpathpointer];
     }
-    reverse(answer.begin(), answer.end());
 
     //clean up
     for (int i = 0; i < seq_size; i++)
