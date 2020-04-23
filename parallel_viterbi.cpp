@@ -255,6 +255,6 @@ bool LTDPViterbi::_isParallel(double* A, double* B, int size)
         if (fabs(diff - delta) > EPSILON)
             return false;
     }
-    cout << "Congrats! We found a parallel vector." << endl;
+    //cout << "Congrats! We found a parallel vector." << endl;
     return true;
 }

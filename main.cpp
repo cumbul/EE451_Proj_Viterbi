@@ -4,74 +4,51 @@
 #include "parallel_viterbi.h"
 #include "util.h"
 #include <map>
+#include <time.h>
 
 using namespace std;
 //typedef map<string, map<string, float> > Table; 
 
 int main()
 {
-    /*
-    Viterbi viterbi(Util::getToyExample1());
+    //change the parameter here
+    int num_state = 40, num_obs = 80, seq_length = 1200, num_cores = 2;
 
-    cout << "Vanilla Viterbi Test:" << endl;
+    HMM hmm = Util::getRandomHMM(num_state, num_obs);
+    vector<string> seq = Util::getRandomSequence(hmm, seq_length);
+    struct timespec start, stop;
+    double time;
 
-    vector<string> input1 = Util::getToyExample1_Test1();
-    cout << "Input 1: ";
-    for (string s: input1) cout << s << " ";
-    cout << endl;
-    vector<string> my_ans = viterbi.solve(input1);
-    cout << "My answer: ";
-    for (string s: my_ans) cout << s << " ";
-    cout << endl;
-    vector<string> true_ans = Util::getToyExample1_Ans1();
-    cout << "True answer: ";
-    for (string s: true_ans) cout << s << " ";
-    cout << endl;
-
-    vector<string> input2 = Util::getToyExample1_Test2();
-    cout << "Input 2: ";
-    for (string s: input2) cout << s << " ";
-    cout << endl;
-    my_ans = viterbi.solve(input2);
-    cout << "My answer: ";
-    for (string s: my_ans) cout << s << " ";
-    cout << endl; 
-    true_ans = Util::getToyExample1_Ans2();
-    cout << "True answer: ";
-    for (string s: true_ans) cout << s << " ";
-    cout << endl;
-
-    viterbi = Viterbi(Util::getToyExample2());
-    vector<string> input3 = Util::getToyExample2_Test();
-    cout << "Input 3: ";
-    for (string s: input3) cout << s << " ";
-    cout << endl;
-    my_ans = viterbi.solve(input3);
-    cout << "My answer: ";
-    for (string s: my_ans) cout << s << " ";
-    cout << endl; 
-    true_ans = Util::getToyExample2_Ans();
-    cout << "True answer: ";
-    for (string s: true_ans) cout << s << " ";
-    cout << endl;
-    
-
-    cout << "Parallel Viterbi" << endl;
-    LTDPViterbi ltdp = LTDPViterbi(Util::getToyExample1(), 2);
-    my_ans = ltdp.solve(Util::getToyExample1_Test1());
-    cout << "LTDP Viterbi: ";
-    for (string s: my_ans) cout << s << " ";
-    cout << endl;    
-    */
-    HMM hmm = Util::getRandomHMM(8, 15);
-    vector<string> seq = Util::getRandomSequence(hmm, 20);
-    for (string str: seq)
-        cout << str << " ";
-    cout << endl;
+    cout << "Vanilla Viterbi: " << endl;
 
     Viterbi viterbi(hmm);
-    vector<string> my_ans = viterbi.solve(seq);
-    for (string str: my_ans)
-        cout << str << " ";
+    if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) { perror( "clock gettime" );}
+    vector<string> vanilla_ans = viterbi.solve(seq);
+    if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
+    time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+    cout << "Vanilla Viterbi takes " << time << "s." << endl;    
+    
+    cout << "Parallel Viterbi: " << endl;
+    LTDPViterbi ltdp_viterbi(hmm, num_cores);
+    if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) { perror( "clock gettime" );}
+    vector<string> ltdp_ans = ltdp_viterbi.solve(seq);
+    if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
+    time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+    cout << "Parallel Viterbi takes " << time << " s." << endl;
+
+    cout << "Checking correctness...";
+    bool correct = true;
+    for (int i = 0; i < seq_length; i++)
+    {
+	if (vanilla_ans[i].compare(ltdp_ans[i]) != 0)
+	{
+	    correct = false;
+	    break;
+	}
+    }
+    if (correct)
+	cout << "Correct!";
+    else
+	cout << "Incorrect!";
     cout << endl;
 }
