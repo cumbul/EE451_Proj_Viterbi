@@ -61,7 +61,7 @@ vector<string> Viterbi::solve(const vector<string>& sequence)
     }
 
     //backtracking
-    vector<string> answer;
+    vector<string> answer(seq_size);
     double bestprob = viterbi[seq_size-1][0];
     int bestpathpointer = 0;
     for (int i = 0; i < state_size; i++)
@@ -75,10 +75,9 @@ vector<string> Viterbi::solve(const vector<string>& sequence)
     
     for (int i = seq_size; i > 0; i--)
     {
-        answer.push_back(state_list[bestpathpointer]);
+        answer[i-1] = state_list[bestpathpointer];
         bestpathpointer = backpointer[i-1][bestpathpointer];
     }
-    reverse(answer.begin(), answer.end());
 
     //clean up
     for (int i = 0; i < seq_size; i++)
