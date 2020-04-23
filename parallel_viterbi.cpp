@@ -210,7 +210,7 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
             converged = conv[0];
             for (int i = 1; i < num_processor; i++)
                 converged = converged && conv[i];
-        } while (converged);
+        } while (!converged);
     }
 
     //backtracking
@@ -226,12 +226,58 @@ vector<string> LTDPViterbi::solve(const vector<string>& sequence)
         }
     }
     
-    for (int i = seq_size; i > 0; i--)
+    if (num_processor == 1)
     {
-        answer[i-1] = state_list[bestpathpointer];
-        bestpathpointer = pred[i-1][bestpathpointer];
+        for (int i = seq_size; i > 0; i--)
+        {
+            answer[i-1] = state_list[bestpathpointer];
+            bestpathpointer = pred[i-1][bestpathpointer];
+        }
     }
+    else
+    {
+        for (int i = 0; i < num_processor; i++) conv[i] = false;
+        #pragma omp parallel num_threads(num_processor) shared(state_list, obs_list, seq_size, state_size, viterbi, pred)
+        {
+            int tid = omp_get_thread_num()+1;
+            int left_p = (seq_size / num_processor) * (tid - 1);
+            int right_p = std::min((seq_size / num_processor) * tid, seq_size-1);
 
+            int x = (tid == num_processor-1)? bestpathpointer: 0;
+            for (int i = right_p; i >= left_p; i--)
+            {
+                result[i] = x = pred[i][bestpathpointer];
+            }
+        }
+        // till  convergence (fix up loop)
+        do
+        {
+            #pragma omp parallel num_threads(num_processor-1) shared(state_list, obs_list, seq_size, state_size, viterbi, pred, conv)
+            {
+                int tid = omp_get_thread_num() + 1;
+                conv[tid] = false;
+                int left_p = (seq_size / num_processor) * (tid - 1);
+                int right_p = std::min((seq_size / num_processor) * tid, seq_size-1);
+                
+                //obtain final result from next processor
+                int x = result[right_p + 1];
+                for (int i = right_p; i >= left_p + 1; i--)
+                {
+                    x = pred[i][x];
+                    if (result[i] == x)
+                    {
+                        conv[tid] = true;
+                        break;
+                    }
+                    result[i] = x;
+                }
+            converged = conv[0];
+            for (int i = 1; i < num_processor; i++)
+                converged = converged && conv[i];
+            }
+        } while (!converged);
+    }
+    
     //clean up
     for (int i = 0; i < seq_size; i++)
     {
