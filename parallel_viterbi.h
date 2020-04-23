@@ -22,6 +22,11 @@ Parallel Viterbi Algorithm with Linear Tropical Dynamic Programming
 ****************************/
 class LTDPViterbi : public ParallelViterbi
 {
+private:
+    const double EPSILON = 0.0001;     //error allowed during calculating parallel vectors
+    bool _isParallel(double* A, double* B, int size);
+    int** _forward_phase(const vector<string>& sequence);
+    vector<string> _backward_phase(int** pred, int seq_size);
 public:
     LTDPViterbi() : ParallelViterbi() {};
     LTDPViterbi(const HMM& hmm) : ParallelViterbi(hmm) {};
