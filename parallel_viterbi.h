@@ -22,7 +22,7 @@ Parallel Viterbi Algorithm with Linear Tropical Dynamic Programming
 ****************************/
 class LTDPViterbi : public ParallelViterbi
 {
-private:
+protected:
     const double EPSILON = 0.0001;     //error allowed during calculating parallel vectors
     bool _isParallel(double* A, double* B, int size);
 public:
@@ -32,4 +32,15 @@ public:
     virtual vector<string> solve(const vector<string>& sequence) override;
 };
 
+/****************************
+Parallel Viterbi Algorithm using LTDP with "Processor Oblivious"
+****************************/
+class LTDPViterbi_Oblivious : public LTDPViterbi
+{
+public:
+    LTDPViterbi_Oblivious() : LTDPViterbi() {};
+    LTDPViterbi_Oblivious(const HMM& hmm) : LTDPViterbi(hmm) {};
+    LTDPViterbi_Oblivious(const HMM& hmm, int num_processor) : LTDPViterbi(hmm, num_processor) {};
+    virtual vector<string> solve(const vector<string>& sequence) override;
+}
 #endif
