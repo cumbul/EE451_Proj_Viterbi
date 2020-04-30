@@ -42,5 +42,5 @@ public:
     LTDPViterbi_Oblivious(const HMM& hmm) : LTDPViterbi(hmm) {};
     LTDPViterbi_Oblivious(const HMM& hmm, int num_processor) : LTDPViterbi(hmm, num_processor) {};
     virtual vector<string> solve(const vector<string>& sequence) override;
-}
+};
 #endif

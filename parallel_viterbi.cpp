@@ -197,7 +197,7 @@ vector<string> LTDPViterbi_Oblivious::solve(const vector<string>& sequence)
     int seq_size = sequence.size();
     int state_size = state_list.size();
     int t = seq_size;
-    int c = max(int(log2(t)) - 4, 2);
+    int c = pow(2, max(int(log2(t)) - 4, 2));
     int size = c;
     int q = t / size;
 
@@ -215,15 +215,15 @@ vector<string> LTDPViterbi_Oblivious::solve(const vector<string>& sequence)
 	        pred[i][j] = 0;
 
     //forward phase
-    #pragma omp parallel num_threads(q) shared(state_list, obs_list, seq_size, state_size, viterbi, pred, conv)
+    #pragma omp parallel num_threads(q) shared(state_list, obs_list, seq_size, state_size, viterbi, pred)
     {
         int tid = omp_get_thread_num();
         double previous_stage[state_size], hold[state_size];
         int left_p  = tid * size;
-        int right_p = min(left_p + size, seq_size);
+        int right_p = min(left_p + size, seq_size - 1);
 
         //Only the first processor gets the true initial probabilities. Other processors will get a random vector. 
-        if (tid == 1)
+        if (tid == 0)
         {
             for (int i = 0; i < state_size; i++)
             {
@@ -238,7 +238,7 @@ vector<string> LTDPViterbi_Oblivious::solve(const vector<string>& sequence)
                 previous_stage[i] = (double)(rand() % 100) / 100.0;
         }
 
-        for (int i = left_p; i < right_p; i++)
+        for (int i = left_p + 1; i <= right_p; i++)
         {
             for (int j = 0; j < state_size; j++)        //for each current state
             {
@@ -261,10 +261,9 @@ vector<string> LTDPViterbi_Oblivious::solve(const vector<string>& sequence)
             memcpy(previous_stage, hold, sizeof(double) * state_size);            
         }
     }
-
     //fixup phase
     bool converged = false;
-    for (int bound = int(log2(c)); bound < int(log2(t) && !converged; bound++))
+    for (int bound = int(log2(c)); bound < int(log2(t)) - 1 && !converged; bound++)
     {
         size = pow(2, bound);
         q = t / (2 * size);
@@ -275,13 +274,12 @@ vector<string> LTDPViterbi_Oblivious::solve(const vector<string>& sequence)
         #pragma omp parallel num_threads(q) shared(state_list, obs_list, seq_size, state_size, viterbi, pred, conv)
         {
             int tid = omp_get_thread_num();
-            int left_p = (((2 * tid) + 1) * size) - 1;
-            int right_p = min(left_p + size, seq_size);
-            conv[tid] = false;
+            int left_p = (((2 * tid) + 1) * size);
+            int right_p = min(left_p, seq_size - 1);
             double u[state_size], hold[state_size];
             memcpy(u, viterbi[left_p], sizeof(double) * state_size);
 
-            for (int i = left_p; i < right_p; i++)
+            for (int i = left_p + 1; i <= right_p; i++)
             {
                 for (int j = 0; j < state_size; j++)        //for each current state
                 {
@@ -306,7 +304,8 @@ vector<string> LTDPViterbi_Oblivious::solve(const vector<string>& sequence)
                 {
                     conv[tid] = true;
                     break;
-                }    
+                }
+		memcpy(viterbi[i], hold, sizeof(double) * state_size);    
             }
         }
         converged = conv[0];
