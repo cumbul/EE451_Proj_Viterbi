@@ -12,7 +12,7 @@ using namespace std;
 #define TAG 200
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
-vector<string> scatter_seq(vector<string>& seq, int my_rank, int num_nodes);
+vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes);
 //vector<string> worker_recv_seq();
 
 int main(int argc, char *argv[])
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
         cout << endl;
     }
     //***************************debug***************************
-    seq = scatter_seq(seq, my_rank, num_nodes);
+    seq = scatter_seq(hmm, seq, my_rank, num_nodes);
 
     if (my_rank == ROOT)
     {
@@ -80,26 +80,6 @@ int main(int argc, char *argv[])
 
     //***************************debug***************************
     MPI_Barrier(MPI_COMM_WORLD);
-    cout << "Debug node " << my_rank << ":" << endl;
-    vector<string> state_list = hmm.get_state_list();
-    cout << "Node " << my_rank << " state trans:" << endl;
-    for (int i = 0; i < state_list.size(); i++)
-    {
-        for (int j = 0; j < state_list.size(); j++)
-        {
-            cout << state_list[i] << " -> " << state_list[j] << " : " << hmm.get_trans_prob(state_list[i], state_list[j]) << endl;
-        }
-    }
-    cout << endl;
-    cout << "Node " << my_rank << " obs emission:" << endl;
-    vector<string> obs_list = hmm.get_observation_list();
-    for (int i = 0; i < state_list.size(); i++)
-    {
-        for (int j = 0; j < obs_list.size(); j++)
-        {
-            cout << state_list[i] << " -> " << obs_list[j] << " : " << hmm.get_obs_prob(state_list[i], obs_list[j]) << endl;
-        }
-    }
     cout << "Node " << my_rank << "sequence:" << endl;
     for (string str : seq)
         cout << str << " ";
@@ -205,27 +185,27 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
         return HMM(trans_prob, obs_prob, map<string, double>());
 }
 
-vector<string> scatter_seq(vector<string>& seq, int my_rank, int num_nodes)
+vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes)
 {
-    char* send_data;
-    char* recv_data;
-    int elements_per_proc = seq.size() / num_nodes;
+    map<string, int> obs_to_int;
+    int element_per_proc = seq.size() / num_nodes;
+
+    int* obs_sent = new int[seq.size()];
+    int* obs_recv = new int[element_per_proc];
     if (my_rank == ROOT)
     {
-        send_data = (char*) calloc(seq.size(), BUFFER_SIZE);
-        for (int i = 0; i < seq.size(); i++)
-            strncpy(&send_data[i * BUFFER_SIZE], seq[i].c_str(), BUFFER_SIZE);
+        const vector<string>& obs_list = hmm.get_observation_list();
+        for (int i = 0; i < obs_list.size(); i++)
+            obs_to_int[obs_list[i]] = i;
+        for (int i = 0; i < seq.size(); i++) 
+            obs_sent[i] = obs_to_int[seq[i]];
     }
-    recv_data = new char[elements_per_proc * BUFFER_SIZE];
-    MPI_Scatter(send_data, elements_per_proc, MPI_CHAR, recv_data, elements_per_proc, MPI_CHAR, ROOT, MPI_COMM_WORLD);
-    vector<string> result;
-    char* token = strtok(recv_data, "");
-    result.push_back(string(token));
-    while (token != NULL)
-    {
-        token = strtok(NULL, "");
-        result.push_back(string(token));
-    }
+    MPI_Scatter(obs_sent, element_per_proc, MPI_INT, obs_recv, element_per_proc, MPI_INT, ROOT, MPI_COMM_WORLD);
+    vector<string> result(element_per_proc);
+    for (int i = 0; i < element_per_proc; i++)
+        result[i] = obs_list[obs_recv[i]];
+    delete [] obs_index;
+    delete [] obs_recv;
     return result;
 }
 
