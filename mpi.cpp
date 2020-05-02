@@ -188,13 +188,13 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
 vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes)
 {
     map<string, int> obs_to_int;
+    const vector<string>& obs_list = hmm.get_observation_list();
     int element_per_proc = seq.size() / num_nodes;
 
     int* obs_sent = new int[seq.size()];
     int* obs_recv = new int[element_per_proc];
     if (my_rank == ROOT)
     {
-        const vector<string>& obs_list = hmm.get_observation_list();
         for (int i = 0; i < obs_list.size(); i++)
             obs_to_int[obs_list[i]] = i;
         for (int i = 0; i < seq.size(); i++) 
@@ -204,7 +204,7 @@ vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_n
     vector<string> result(element_per_proc);
     for (int i = 0; i < element_per_proc; i++)
         result[i] = obs_list[obs_recv[i]];
-    delete [] obs_index;
+    delete [] obs_sent;
     delete [] obs_recv;
     return result;
 }
