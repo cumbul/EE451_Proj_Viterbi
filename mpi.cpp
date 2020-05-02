@@ -1,9 +1,12 @@
 #include <iostream>
+#include <map>
+#include <cstring>
+#include <math.h>
+#include <stdlib.h>
+#include <time.h>
 #include <mpi.h>
 #include "util.h"
 #include "viterbi.h"
-#include <map>
-#include <time.h>
 
 using namespace std;
 
@@ -13,7 +16,6 @@ using namespace std;
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
 vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes);
-//vector<string> worker_recv_seq();
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +40,7 @@ int main(int argc, char *argv[])
     struct timespec start, stop;
     double time;
 
+    //******************************vanilla******************************
     if (my_rank == ROOT)
     {
         hmm = Util::getRandomHMM(num_state, num_obs);
@@ -55,22 +58,81 @@ int main(int argc, char *argv[])
         cout << "Parallel Viterbi: " << endl;
         if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) { perror( "clock gettime" );}
     }
+    //******************************vanilla******************************
 
-    //distribut data
+    //******************************distribute data******************************
     hmm = bcast_hmm(hmm, my_rank);
+    seq = scatter_seq(hmm, seq, my_rank, num_nodes);
+    //******************************distribute data******************************
 
-    //***************************debug***************************
-    MPI_Barrier(MPI_COMM_WORLD);
+    //******************************forward phase******************************
+    vector<string> state_list = hmm.get_state_list();
+    vector<string> obs_list = hmm.get_observation_list();
+    int seq_size = seq.size();
+    int state_size = state_list.size();
+    double** viterbi = new double*[seq_size];
+    int** pred = new int*[seq_size];
+    double previous_stage[state_size], hold[state_size];
+
+    //initialization
+    for (int i = 0; i < seq_size; i++)
+    {
+        viterbi[i] = new double[state_size];
+        pred[i] = new int[state_size];
+    }
+
+    for (int i = 0; i < seq_size; i++)
+    	for (int j = 0; j < state_size; j++)
+	        pred[i][j] = 0;
+
+    //Only the first node gets the true initial probabilities. Other node will get a random vector.
     if (my_rank == ROOT)
     {
-        cout << "Original sequence:" << endl;
-        for (string str : seq)
-            cout << str << " ";
-        cout << endl;
+        for (int i = 0; i < state_size; i++)
+        {
+            string state = state_list[i];
+            viterbi[0][i] = previous_stage[i] = log(hmm.get_init_prob(state)) + log(hmm.get_obs_prob(state, seq[0]));
+            pred[0][i] = 0;
+        }
     }
-    //***************************debug***************************
-    seq = scatter_seq(hmm, seq, my_rank, num_nodes);
+    else
+    {
+        for (int i = 0; i < state_size; i++)
+            previous_stage[i] = (double)(rand() % 100) / 100.0;
+    }
 
+    for (int i = 1; i < seq.size(); i++)
+    {
+        for (int j = 0; j < state_size; j++)
+        {
+            string current_state = state_list[j];
+            double max_so_far = -INFINITY;
+            int max_so_far_index = 0; 
+            for (int k = 0; k < state_size; k++)
+            {
+                string previous_state = state_list[k];
+                double prob = previous_stage[k] + log(hmm.get_trans_prob(previous_state, current_state)) + log(hmm.get_obs_prob(current_state, seq[i]));
+                if (prob > max_so_far)
+                {
+                    max_so_far = prob;
+                    max_so_far_index = k;
+                }
+            }
+            viterbi[i][j] = hold[j] = max_so_far;
+            pred[i][j] = max_so_far_index;
+        }
+        memcpy(previous_stage, hold, sizeof(double) * state_size);
+    }
+
+    //******************************forward phase******************************
+
+    //******************************fixing phase******************************
+    //******************************fixing phase******************************
+
+    //******************************backtrack phase******************************
+    //******************************backtrack phase******************************
+
+    //runtime output
     if (my_rank == ROOT)
     {
         if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
@@ -78,44 +140,16 @@ int main(int argc, char *argv[])
         cout << "Parallel Viterbi takes " << time << " s." << endl;
     }
 
-    //***************************debug***************************
-    MPI_Barrier(MPI_COMM_WORLD);
-    cout << "Node " << my_rank << "sequence:" << endl;
-    for (string str : seq)
-        cout << str << " ";
-    cout << endl;
-
-    cout << "***************************" << endl;
-    //***************************debug***************************
-
-    //host_scatter_seq(seq, num_nodes);
-
-
-    //phase 1
-    
-    //send last vector to node 1
-
-    //wait until receiving the backtracking result from node 1
-
-    //backtrack
-
-
-    //workers///
-
-    //once receive necessary data they can start phase 1 right away
-    
-
-    //when done phase 1, send the last vector to next node
-    
-    //loop until converged
-        //receive vector from previous node
-        //phase 2 : fix vectors
-        //if converged, send "converge" signal to root.
-        //send last vector to next node
-
-    //if this is the last node, start backtracking, then send the result to previous node.
-    //else, receive the backtracking result from next node, backtrack, and send the result to previous node.
     MPI_Finalize();
+
+    //clean up
+    for (int i = 0; i < seq_size; i++)
+    {
+        delete [] viterbi[i];
+        delete [] pred[i];
+    }
+    delete [] viterbi;
+    delete [] pred;
     
     return 0;
 }
@@ -211,8 +245,3 @@ vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_n
     delete [] obs_recv;
     return result;
 }
-
-//vector<string> worker_recv_seq()
-//{
-
-//}
