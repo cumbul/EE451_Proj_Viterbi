@@ -12,7 +12,7 @@ using namespace std;
 #define TAG 200
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
-vector<string> seq scatter_seq(vector<string>& seq, int my_rank, int num_nodes);
+vector<string> scatter_seq(vector<string>& seq, int my_rank, int num_nodes);
 //vector<string> worker_recv_seq();
 
 int main(int argc, char *argv[])
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
         time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
         cout << "Parallel Viterbi takes " << time << " s." << endl;
     }
-    
+
     //***************************debug***************************
     MPI_Barrier(MPI_COMM_WORLD);
     cout << "Debug node " << my_rank << ":" << endl;
@@ -205,7 +205,7 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
         return HMM(trans_prob, obs_prob, map<string, double>());
 }
 
-vector<string> seq scatter_seq(vector<string>& seq, int my_rank, int num_nodes)
+vector<string> scatter_seq(vector<string>& seq, int my_rank, int num_nodes)
 {
     char* send_data;
     char* recv_data;
