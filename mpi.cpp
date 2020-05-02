@@ -12,13 +12,13 @@ using namespace std;
 #define TAG 200
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
-//void scatter_seq(vector<string>& seq, int num_nodes);
+vector<string> seq scatter_seq(vector<string>& seq, int my_rank, int num_nodes);
 //vector<string> worker_recv_seq();
 
 int main(int argc, char *argv[])
 {
     //change the parameter here
-    int num_state = 4, num_obs = 4, seq_length = 4;
+    int num_state = 4, num_obs = 4, seq_length = 16;
 
     MPI_Init(&argc, &argv);
     int num_nodes;
@@ -59,6 +59,18 @@ int main(int argc, char *argv[])
     //distribut data
     hmm = bcast_hmm(hmm, my_rank);
 
+    //***************************debug***************************
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (my_rank == ROOT)
+    {
+        cout << "Original sequence:" << endl;
+        for (string str : seq)
+            cout << str << " ";
+        cout << endl;
+    }
+    //***************************debug***************************
+    seq = scatter_seq(seq, my_rank, num_nodes);
+
     if (my_rank == ROOT)
     {
         if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
@@ -67,6 +79,7 @@ int main(int argc, char *argv[])
     }
     
     //***************************debug***************************
+    MPI_Barrier(MPI_COMM_WORLD);
     cout << "Debug node " << my_rank << ":" << endl;
     vector<string> state_list = hmm.get_state_list();
     cout << "Node " << my_rank << " state trans:" << endl;
@@ -87,6 +100,11 @@ int main(int argc, char *argv[])
             cout << state_list[i] << " -> " << obs_list[j] << " : " << hmm.get_obs_prob(state_list[i], obs_list[j]) << endl;
         }
     }
+    cout << "Node " << my_rank << "sequence:" << endl;
+    for (string str : seq)
+        cout << str << " ";
+    cout << endl;
+
     cout << "***************************" << endl;
     //***************************debug***************************
 
@@ -187,9 +205,29 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
         return HMM(trans_prob, obs_prob, map<string, double>());
 }
 
-//void scatter_seq(vector<string>& seq, int num_nodes)
-//{
-//}
+vector<string> seq scatter_seq(vector<string>& seq, int my_rank, int num_nodes)
+{
+    char* send_data;
+    char* recv_data;
+    int elements_per_proc = seq.size() / num_nodes;
+    if (my_rank == ROOT)
+    {
+        send_data = (char*) calloc(seq.size(), BUFFER_SIZE);
+        for (int i = 0; i < seq.size(); i++)
+            strncpy(&send_data[i * BUFFER_SIZE], seq[i].c_str(), BUFFER_SIZE);
+    }
+    recv_data = new char[elements_per_proc * BUFFER_SIZE];
+    MPI_Scatter(send_data, elements_per_proc, MPI_CHAR, recv_data, elements_per_proc, MPI_CHAR, ROOT, MPI_COMM_WORLD);
+    vector<string> result;
+    char* token = strtok(recv_data, "");
+    result.push_back(string(token));
+    while (token != NULL)
+    {
+        token = strtok(NULL, "");
+        result.push_back(string(token));
+    }
+    return result;
+}
 
 //vector<string> worker_recv_seq()
 //{
