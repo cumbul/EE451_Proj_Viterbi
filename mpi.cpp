@@ -1,6 +1,7 @@
 #include <iostream>
 #include <mpi.h>
 #include "util.h"
+#include "viterbi.h"
 #include <map>
 #include <time.h>
 
@@ -15,12 +16,12 @@ void host_distribute_hmm(HMM& hmm, int num_nodes);
 HMM worker_recv_hmm();
 //vector<string> worker_recv_seq();
 
-int main()
+int main(int argc, char *argv[])
 {
     //change the parameter here
     int num_state = 4, num_obs = 4, seq_length = 4;
 
-    MPI_Init(NULL, NULL);
+    MPI_Init(&argc, &argv);
     int num_nodes;
     MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
     int my_rank;
@@ -71,7 +72,7 @@ int main()
         if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) { perror( "clock gettime" );}
 
         //distribut data
-        host_distribute_data(hmm, num_nodes);
+        host_distribute_hmm(hmm, num_nodes);
         //host_scatter_seq(seq, num_nodes);
 
 
@@ -90,7 +91,8 @@ int main()
     else
     {
         //receive data
-        HMM hmm = worker_recv_data();
+        cout << "hello world from worker " << my_rank << "!" << endl; 
+        HMM hmm = worker_recv_hmm();
         //vector<string> seq = worker_recv_seq();
 
         //***************************debug***************************
@@ -131,6 +133,7 @@ int main()
         //if this is the last node, start backtracking, then send the result to previous node.
         //else, receive the backtracking result from next node, backtrack, and send the result to previous node.
     }
+    MPI_Finalize();
     
     return 0;
 }
@@ -141,11 +144,12 @@ void host_distribute_hmm(HMM& hmm, int num_nodes)
     //send number of states
     int num_states = state_list.size();
     MPI_Bcast(&num_states, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-
+    MPI_Barrier(MPI_COMM_WORLD);
+	cout << "Host: sent num_states!" << endl;
     //send state_list
     for (int i = 0; i < num_states; i++)
     {
-        MPI_Bcast(state_list[i].c_str(), state_list[i].size(), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&state_list[i][0], state_list[i].size(), MPI_CHAR, ROOT, MPI_COMM_WORLD);
     }
 
     //send state transition probabilities
@@ -156,7 +160,7 @@ void host_distribute_hmm(HMM& hmm, int num_nodes)
         {
             string next = state_list[j];
             double prob = hmm.get_trans_prob(previous, next);
-            MPI_Bcast(&prorb, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+            MPI_Bcast(&prob, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
         }
     }
 
@@ -168,7 +172,7 @@ void host_distribute_hmm(HMM& hmm, int num_nodes)
     //send observation list
     for (int i = 0; i < num_obs; i++)
     {
-        MPI_Bcast(obs_list[i].c_str(), obs_list[i].size(), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&obs_list[i][0], obs_list[i].size(), MPI_CHAR, ROOT, MPI_COMM_WORLD);
     }
 
     //send observation probabilities
@@ -179,7 +183,7 @@ void host_distribute_hmm(HMM& hmm, int num_nodes)
         {
             string obs = obs_list[j];
             double prob = hmm.get_obs_prob(state, obs);
-            MPI_Bcast(&prorb, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+            MPI_Bcast(&prob, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
         }
     }
 }
@@ -190,20 +194,21 @@ void host_distribute_hmm(HMM& hmm, int num_nodes)
 
 HMM worker_recv_hmm()
 {
+	cout << "waiting for num_states..." << endl;
     Table trans_prob, obs_prob;
     //receive number of states
     int num_states;
     MPI_Recv(&num_states, 1, MPI_INT, ROOT, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     vector<string> state_list(num_states);
-
+	cout << "received num_state!" << endl;
     //receive state_list
     char buffer[BUFFER_SIZE];
     for (int i = 0; i < num_states; i++)
     {
-        MPI_Recv(&buffer, BUFFER_SIZE, MPI_CHAR, ROOT, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Bcast(&buffer, BUFFER_SIZE, MPI_CHAR, ROOT, MPI_COMM_WORLD);
         state_list[i] = string(buffer);
     }
-
+	cout << "done state_list!" << endl;
     //receive state transition probabilities
     //send state transition probabilities
     for (int i = 0; i < num_states; i++)
@@ -213,23 +218,23 @@ HMM worker_recv_hmm()
         {
             string next = state_list[j];
             double prob;
-            MPI_Recv(&prob, 1, MPI_DOUBLE, ROOT, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Bcast(&prob, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
             trans_prob[previous][next] = prob;
         }
     }
-
+	cout << "done trans_prob!" << endl;
     //receive number of observation
     int num_obs;
-    MPI_Recv(&num_obs, 1, MPI_INT, ROOT, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Bcast(&num_obs, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     vector<string> obs_list(num_obs);
 
     //receive observation list
     for (int i = 0; i < num_obs; i++)
     {
-        MPI_Recv(&buffer, BUFFER_SIZE, MPI_CHAR, ROOT, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Bcast(&buffer, BUFFER_SIZE, MPI_CHAR, ROOT, MPI_COMM_WORLD);
         obs_list[i] = string(buffer);
     }
-
+	cout << "done obs_list!" << endl;
     //receive observation probabilities
     for (int i = 0; i < num_states; i++)
     {
@@ -238,11 +243,11 @@ HMM worker_recv_hmm()
         {
             string obs = obs_list[j];
             double prob;
-            MPI_Recv(&prob, 1, MPI_DOUBLE, ROOT, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Bcast(&prob, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
             obs_prob[state][obs] = prob;
         }
     }
-
+	cout << "done obs probs!" << endl;
     return HMM(trans_prob, obs_prob, map<string, double>());
 }
 
