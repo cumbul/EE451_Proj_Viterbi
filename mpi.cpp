@@ -187,9 +187,12 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
 
 vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes)
 {
+    int seq_length = seq.size();
+    MPI_Bcast(&seq_length, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+
     map<string, int> obs_to_int;
     const vector<string>& obs_list = hmm.get_observation_list();
-    int element_per_proc = seq.size() / num_nodes;
+    int element_per_proc = seq_length / num_nodes;
 
     int* obs_sent = new int[seq.size()];
     int* obs_recv = new int[element_per_proc];
