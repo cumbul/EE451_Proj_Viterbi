@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     }
 
     //distribut data
-    hmm = bcast_hmm(hmm);
+    hmm = bcast_hmm(hmm, my_rank);
 
     if (my_rank == ROOT)
     {
@@ -144,7 +144,7 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
     {
         if (my_rank == ROOT) strcpy(buffer, &state_list[i][0]);
         MPI_Bcast(buffer, BUFFER_SIZE, MPI_CHAR, ROOT, MPI_COMM_WORLD);
-        if (my_rank != ROOT) state_list.append(string(buffer));
+        if (my_rank != ROOT) state_list.push_back(string(buffer));
     }
     //send state transition probabilities
     for (int i = 0; i < num_states; i++)
@@ -166,7 +166,7 @@ HMM bcast_hmm(HMM& hmm, int my_rank)
     {
         if (my_rank == ROOT) strcpy(buffer, &obs_list[i][0]);
         MPI_Bcast(buffer, BUFFER_SIZE, MPI_CHAR, ROOT, MPI_COMM_WORLD);
-        if (my_rank != ROOT) obs_list.append(string(buffer));
+        if (my_rank != ROOT) obs_list.push_back(string(buffer));
     }
     //send observation probabilities
     for (int i = 0; i < num_states; i++)
