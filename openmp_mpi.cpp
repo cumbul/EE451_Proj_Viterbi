@@ -14,7 +14,7 @@ using namespace std;
 #define ROOT 0
 #define BUFFER_SIZE 20
 #define TAG 200
-#define EPSILON 0.0001     //error allowed during calculating parallel vectors
+#define EPSILON 0.0000001     //error allowed during calculating parallel vectors
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
 vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes);
@@ -38,7 +38,6 @@ int main(int argc, char *argv[])
         return 0;
     }
     srand(time(NULL));
-    cout << "Openmp_mpi : Using " << num_cores << " processors." << endl;
 
     HMM hmm;
     vector<string> seq, vanilla_ans;
@@ -48,6 +47,7 @@ int main(int argc, char *argv[])
     //******************************vanilla******************************
     if (my_rank == ROOT)
     {
+        cout << "Openmp_mpi : Using " << num_cores << " processors." << endl;
         hmm = Util::getRandomHMM(num_state, num_obs);
         seq = Util::getRandomSequence(hmm, seq_length);
 
@@ -109,8 +109,15 @@ int main(int argc, char *argv[])
         }
         else
         {
+            double temp[state_size];
+            double sum = 0;
             for (int i = 0; i < state_size; i++)
-                previous_stage[i] = (double)(rand() % 100) / 100.0;
+            {
+                temp[i] = (double)(rand() % 100);
+                sum += temp[i];
+            }
+            for (int i = 0; i < state_size; i++)
+                previous_stage[i] = temp[i] / sum;
         }
 
         //forward
@@ -142,7 +149,6 @@ int main(int argc, char *argv[])
     //******************************fixing phase******************************
     bool all_nodes_converged = false;
     bool my_cores_converged[num_cores];
-    bool my_part_has_converged = false;
     double vector_from_previous_node[state_size];
     while (!all_nodes_converged)
     {
@@ -154,7 +160,7 @@ int main(int argc, char *argv[])
         if (my_rank != ROOT)
             MPI_Recv(vector_from_previous_node, state_size, MPI_DOUBLE, my_rank-1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        #pragma omp parallel num_threads(num_cores) shared(viterbi, pred, hmm, state_list, seq_size)
+        #pragma omp parallel num_threads(num_cores) shared(viterbi, pred, hmm, state_list, seq_size, my_cores_converged)
         {
             int tid = omp_get_thread_num();
             double previous_stage[state_size], hold[state_size];
@@ -205,11 +211,7 @@ int main(int argc, char *argv[])
                 memcpy(viterbi[i], hold, sizeof(double) * state_size);
             }
         }
-        my_part_has_converged = true;
-        for (int i = 0; i < num_cores; i++)
-            my_part_has_converged = my_part_has_converged & my_cores_converged[i];
-
-        MPI_Allreduce(&my_part_has_converged, &all_nodes_converged, 1, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);        
+        MPI_Allreduce(my_cores_converged, &all_nodes_converged, num_cores, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);        
     }
     //******************************fixing phase******************************
 
