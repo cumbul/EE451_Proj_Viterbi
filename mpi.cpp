@@ -13,9 +13,11 @@ using namespace std;
 #define ROOT 0
 #define BUFFER_SIZE 20
 #define TAG 200
+#define EPSILON 0.0001     //error allowed during calculating parallel vectors
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
 vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes);
+bool isParallel(double* A, double* B, int size);
 
 int main(int argc, char *argv[])
 {
@@ -101,6 +103,7 @@ int main(int argc, char *argv[])
             previous_stage[i] = (double)(rand() % 100) / 100.0;
     }
 
+    //forward viterbi
     for (int i = 1; i < seq.size(); i++)
     {
         for (int j = 0; j < state_size; j++)
@@ -124,9 +127,58 @@ int main(int argc, char *argv[])
         memcpy(previous_stage, hold, sizeof(double) * state_size);
     }
 
+    //send the last vector to the next node (except the last node)
+    if (my_rank != num_nodes-1)
+        MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
     //******************************forward phase******************************
 
     //******************************fixing phase******************************
+    //receive the last vector from the previous node (except the first node)
+    bool all_converged = false;
+    bool my_part_has_converged = (my_rank == ROOT)? true: false;
+    while (!all_converged)
+    {
+        if (my_rank != ROOT)
+        {
+            MPI_Recv(previous_stage, state_size, MPI_DOUBLE, my_rank-1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            for (int i = 0; i < seq_size; i++)
+            {
+                for (int j = 0; j < state_size; j++)
+                {
+                    string current_state = state_list[j];
+                    double max_so_far = -INFINITY;
+                    int max_so_far_index = 0; 
+                    for (int k = 0; k < state_size; k++)
+                    {
+                        string previous_state = state_list[k];
+                        double prob = previous_stage[k] + log(hmm.get_trans_prob(previous_state, current_state)) + log(hmm.get_obs_prob(current_state, seq[i]));
+                        if (prob > max_so_far)
+                        {
+                            max_so_far = prob;
+                            max_so_far_index = k;
+                        }
+                    }
+                    hold[j] = max_so_far;
+                    pred[i][j] = max_so_far_index;
+                }
+                memcpy(previous_stage, hold, sizeof(double) * state_size);
+                if (isParallel(previous_stage, viterbi[i], state_size))
+                {
+                    my_part_has_converged = 1;
+                    break;
+                }
+                memcpy(viterbi[i], hold, sizeof(double) * state_size);
+            }
+        }
+        MPI_Allreduce(&my_part_has_converged, &all_converged, 1, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);
+        if (!all_converged)
+        {
+            my_part_has_converged = (my_rank == ROOT)? true: false;
+            if (my_rank != num_nodes-1)
+                MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
+        }          
+    }
+
     //******************************fixing phase******************************
 
     //******************************backtrack phase******************************
@@ -244,4 +296,17 @@ vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_n
     delete [] obs_sent;
     delete [] obs_recv;
     return result;
+}
+
+bool isParallel(double* A, double* B, int size)
+{
+    double diff = A[0] - B[0];
+    double delta;
+    for (int i = 1; i < size; i++)
+    {
+        delta = A[i] - B[i];
+        if (fabs(diff - delta) > EPSILON)
+            return false;
+    }
+    return true;
 }
