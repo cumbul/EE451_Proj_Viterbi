@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <mpi.h>
+#include <omp.h>
 #include "util.h"
 #include "viterbi.h"
 
@@ -22,7 +23,7 @@ bool isParallel(double* A, double* B, int size);
 int main(int argc, char *argv[])
 {
     //change the parameter here
-    int num_state = 4, num_obs = 4, seq_length = 16;
+    int num_state = 4, num_obs = 4, seq_length = 16, num_cores = 2;
 
     MPI_Init(&argc, &argv);
     int num_nodes;
@@ -47,6 +48,7 @@ int main(int argc, char *argv[])
     //******************************vanilla******************************
     if (my_rank == ROOT)
     {
+        cout << "Openmp_mpi : Using " << num_cores << " processors." << endl;
         hmm = Util::getRandomHMM(num_state, num_obs);
         seq = Util::getRandomSequence(hmm, seq_length);
 
@@ -76,7 +78,6 @@ int main(int argc, char *argv[])
     int state_size = state_list.size();
     double** viterbi = new double*[seq_size];
     int** pred = new int*[seq_size];
-    double previous_stage[state_size], hold[state_size];
 
     //initialization
     for (int i = 0; i < seq_size; i++)
@@ -89,61 +90,100 @@ int main(int argc, char *argv[])
     	for (int j = 0; j < state_size; j++)
 	        pred[i][j] = 0;
 
-    //Only the first node gets the true initial probabilities. Other node will get a random vector.
-    if (my_rank == ROOT)
-    {
-        for (int i = 0; i < state_size; i++)
-        {
-            string state = state_list[i];
-            viterbi[0][i] = previous_stage[i] = log(hmm.get_init_prob(state)) + log(hmm.get_obs_prob(state, seq[0]));
-            pred[0][i] = 0;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < state_size; i++)
-            previous_stage[i] = (double)(rand() % 100) / 100.0;
-    }
-
     //forward viterbi
-    int left_p = (my_rank == ROOT)? 1: 0;
-    for (int i = left_p; i < seq_size; i++)
+    #pragma omp parallel num_threads(num_cores) shared(viterbi, pred, hmm, state_list, seq_size)
     {
-        for (int j = 0; j < state_size; j++)
+        int tid = omp_get_thread_num();
+        double previous_stage[state_size], hold[state_size];
+        int left_p = (my_rank == ROOT && tid == 0)? 1: (seq_size / num_cores) * tid;
+        int right_p = min((seq_size / num_cores) * (tid + 1), seq_size);
+
+        //Only the first node and the first core gets the true initial probabilities. Other node will get a random vector.
+        if (my_rank == ROOT && tid == 0)
         {
-            string current_state = state_list[j];
-            double max_so_far = -INFINITY;
-            int max_so_far_index = 0; 
-            for (int k = 0; k < state_size; k++)
+            for (int i = 0; i < state_size; i++)
             {
-                string previous_state = state_list[k];
-                double prob = previous_stage[k] + log(hmm.get_trans_prob(previous_state, current_state)) + log(hmm.get_obs_prob(current_state, seq[i]));
-                if (prob > max_so_far)
-                {
-                    max_so_far = prob;
-                    max_so_far_index = k;
-                }
+                string state = state_list[i];
+                viterbi[0][i] = previous_stage[i] = log(hmm.get_init_prob(state)) + log(hmm.get_obs_prob(state, seq[0]));
+                pred[0][i] = 0;
             }
-            viterbi[i][j] = hold[j] = max_so_far;
-            pred[i][j] = max_so_far_index;
         }
-        memcpy(previous_stage, hold, sizeof(double) * state_size);
+        else
+        {
+            double temp[state_size];
+            double sum = 0;
+            for (int i = 0; i < state_size; i++)
+            {
+                temp[i] = (double)(rand() % 100);
+                sum += temp[i];
+            }
+            for (int i = 0; i < state_size; i++)
+                previous_stage[i] = temp[i] / sum;
+        }
+
+        //forward
+        for (int i = left_p; i < right_p; i++)
+        {
+            for (int j = 0; j < state_size; j++)
+            {
+                string current_state = state_list[j];
+                double max_so_far = -INFINITY;
+                int max_so_far_index = 0; 
+                for (int k = 0; k < state_size; k++)
+                {
+                    string previous_state = state_list[k];
+                    double prob = previous_stage[k] + log(hmm.get_trans_prob(previous_state, current_state)) + log(hmm.get_obs_prob(current_state, seq[i]));
+                    if (prob > max_so_far)
+                    {
+                        max_so_far = prob;
+                        max_so_far_index = k;
+                    }
+                }
+                viterbi[i][j] = hold[j] = max_so_far;
+                pred[i][j] = max_so_far_index;
+            }
+            memcpy(previous_stage, hold, sizeof(double) * state_size);
+        }
     }
     //******************************forward phase******************************
 
     //******************************fixing phase******************************
-    bool all_converged = false;
-    bool my_part_has_converged = (my_rank == ROOT)? true: false;
-    while (!all_converged)
+    bool all_nodes_converged = false;
+    bool my_cores_converged[num_cores];
+    double vector_from_previous_node[state_size];
+    while (!all_nodes_converged)
     {
         //send the last vector to the next node (except the last node)
         if (my_rank != num_nodes-1)
-            MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
+            MPI_Send(viterbi[seq_size-1], state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
+
+        //receive the last vector from the previous node (except the first node)
         if (my_rank != ROOT)
+            MPI_Recv(vector_from_previous_node, state_size, MPI_DOUBLE, my_rank-1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        #pragma omp parallel num_threads(num_cores) shared(viterbi, pred, hmm, state_list, seq_size, my_cores_converged)
         {
-            //receive the last vector from the previous node (except the first node)
-            MPI_Recv(previous_stage, state_size, MPI_DOUBLE, my_rank-1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            for (int i = 0; i < seq_size; i++)
+            int tid = omp_get_thread_num();
+            double previous_stage[state_size], hold[state_size];
+            int left_p = (seq_size / num_cores) * tid;
+            int right_p = min((seq_size / num_cores) * (tid + 1), seq_size);
+
+            //the first core of first node has converged, so nothing needs to be done
+            if (my_rank == ROOT && tid == 0)
+            {
+                my_cores_converged[tid] = true;
+                left_p = right_p;  //this effectively tells it to skip the for loop
+            }
+            else
+            {
+                my_cores_converged[tid] = false;
+                if (tid == 0)
+                    memcpy(previous_stage, vector_from_previous_node, sizeof(double) * state_size);
+                else
+                    memcpy(previous_stage, viterbi[left_p-1], sizeof(double) * state_size);
+            }
+            
+            for (int i = left_p; i < right_p; i++)
             {
                 for (int j = 0; j < state_size; j++)
                 {
@@ -166,20 +206,13 @@ int main(int argc, char *argv[])
                 memcpy(previous_stage, hold, sizeof(double) * state_size);
                 if (isParallel(previous_stage, viterbi[i], state_size))
                 {
-                    my_part_has_converged = 1;
+                    my_cores_converged[tid] = true;
                     break;
                 }
                 memcpy(viterbi[i], hold, sizeof(double) * state_size);
             }
         }
-        MPI_Allreduce(&my_part_has_converged, &all_converged, 1, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);
-        if (!all_converged)
-        {
-            my_part_has_converged = (my_rank == ROOT)? true: false;
-            //resend the last vector to the next node (except the last node)
-            if (my_rank != num_nodes-1)
-                MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
-        }          
+        MPI_Allreduce(my_cores_converged, &all_nodes_converged, num_cores, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);        
     }
     //******************************fixing phase******************************
 
