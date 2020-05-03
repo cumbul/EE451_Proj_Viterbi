@@ -220,11 +220,36 @@ int main(int argc, char *argv[])
     int total_size = seq_size * num_nodes;
     int* result_array = new int[total_size];
     MPI_Gather(my_part_result, seq_size, MPI_INT, result_array, seq_size, MPI_INT, ROOT, MPI_COMM_WORLD);
-
-    vector<string> result(total_size);
-    for (int i = 0; i < total_size; i++)
-        result[i] = state_list[result_array[i]];
     //******************************backtrack phase******************************
+
+    //******************************output******************************
+    if (my_rank == ROOT)
+    {
+        vector<string> result(total_size);
+        for (int i = 0; i < total_size; i++)
+            result[i] = state_list[result_array[i]];
+            
+        if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
+        time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+        cout << "Parallel Viterbi takes " << time << " s." << endl;
+
+        cout << "Checking correctness...";
+        bool correct = true;
+        for (int i = 0; i < seq_length; i++)
+        {
+            if (vanilla_ans[i].compare(ltdp_ans[i]) != 0)
+            {
+                correct = false;
+                break;
+            }
+        }
+        if (correct)
+            cout << "Correct!";
+        else
+            cout << "Incorrect!";
+        cout << endl;
+    }
+    //******************************output******************************
 
     //******************************clean up******************************
     delete [] my_part_result;
@@ -237,23 +262,6 @@ int main(int argc, char *argv[])
     delete [] viterbi;
     delete [] pred;
     //******************************clean up******************************
-
-    //runtime output
-    if (my_rank == ROOT)
-    {
-        if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
-        time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
-        cout << "Parallel Viterbi takes " << time << " s." << endl;
-
-        cout << "Output of vanilla" << endl;
-        for (string str: vanilla_ans)
-            cout << str << " ";
-        cout << endl;
-        cout << "Output of MPI" << endl;
-        for (string str: result)
-            cout << str << " ";
-        cout << endl;
-    }
 
     MPI_Finalize();
     return 0;
