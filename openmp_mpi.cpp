@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     srand(time(NULL));
-    cout << "Openmp_mpi : Using " << num_processor << " processors." << endl;
+    cout << "Openmp_mpi : Using " << num_cores << " processors." << endl;
 
     HMM hmm;
     vector<string> seq, vanilla_ans;
