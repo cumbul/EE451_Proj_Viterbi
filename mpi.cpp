@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
 
     if (seq_length % num_nodes != 0)
     {
-        cout << "Error: The seq_length must be divisible to number of nodes!" << endl;
+        if (my_rank == ROOT)
+            cout << "Error: The seq_length must be divisible to number of nodes!" << endl;
         MPI_Finalize();
         return 0;
     }
@@ -105,7 +106,8 @@ int main(int argc, char *argv[])
     }
 
     //forward viterbi
-    for (int i = 1; i < seq.size(); i++)
+    int left_p = (my_rank == ROOT)? 1: 0;
+    for (int i = left_p; i < seq_size; i++)
     {
         for (int j = 0; j < state_size; j++)
         {
@@ -127,10 +129,6 @@ int main(int argc, char *argv[])
         }
         memcpy(previous_stage, hold, sizeof(double) * state_size);
     }
-
-    //send the last vector to the next node (except the last node)
-    if (my_rank != num_nodes-1)
-        MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
     //******************************forward phase******************************
 
     //******************************fixing phase******************************
@@ -138,6 +136,9 @@ int main(int argc, char *argv[])
     bool my_part_has_converged = (my_rank == ROOT)? true: false;
     while (!all_converged)
     {
+        //send the last vector to the next node (except the last node)
+        if (my_rank != num_nodes-1)
+            MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
         if (my_rank != ROOT)
         {
             //receive the last vector from the previous node (except the first node)

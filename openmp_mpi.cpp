@@ -14,7 +14,7 @@ using namespace std;
 #define ROOT 0
 #define BUFFER_SIZE 20
 #define TAG 200
-#define EPSILON 0.0000001     //error allowed during calculating parallel vectors
+#define EPSILON 0.0001     //error allowed during calculating parallel vectors
 
 HMM bcast_hmm(HMM& hmm, int my_rank);
 vector<string> scatter_seq(HMM& hmm, vector<string>& seq, int my_rank, int num_nodes);
@@ -33,7 +33,8 @@ int main(int argc, char *argv[])
 
     if (seq_length % num_nodes != 0)
     {
-        cout << "Error: The seq_length must be divisible to number of nodes!" << endl;
+        if (my_rank == ROOT)
+            cout << "Error: The seq_length must be divisible to number of nodes!" << endl;
         MPI_Finalize();
         return 0;
     }
@@ -177,9 +178,9 @@ int main(int argc, char *argv[])
             {
                 my_cores_converged[tid] = false;
                 if (tid == 0)
-                    memcpy(previous_stage, vector_from_previous_node, state_size);
+                    memcpy(previous_stage, vector_from_previous_node, sizeof(double) * state_size);
                 else
-                    memcpy(previous_stage, viterbi[left_p-1], state_size);
+                    memcpy(previous_stage, viterbi[left_p-1], sizeof(double) * state_size);
             }
             
             for (int i = left_p; i < right_p; i++)
