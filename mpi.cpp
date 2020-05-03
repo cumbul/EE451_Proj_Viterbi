@@ -133,13 +133,13 @@ int main(int argc, char *argv[])
     //******************************forward phase******************************
 
     //******************************fixing phase******************************
-    //receive the last vector from the previous node (except the first node)
     bool all_converged = false;
     bool my_part_has_converged = (my_rank == ROOT)? true: false;
     while (!all_converged)
     {
         if (my_rank != ROOT)
         {
+            //receive the last vector from the previous node (except the first node)
             MPI_Recv(previous_stage, state_size, MPI_DOUBLE, my_rank-1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             for (int i = 0; i < seq_size; i++)
             {
@@ -174,14 +174,59 @@ int main(int argc, char *argv[])
         if (!all_converged)
         {
             my_part_has_converged = (my_rank == ROOT)? true: false;
+            //resend the last vector to the next node (except the last node)
             if (my_rank != num_nodes-1)
                 MPI_Send(hold, state_size, MPI_DOUBLE, my_rank+1, TAG, MPI_COMM_WORLD);
         }          
     }
-
     //******************************fixing phase******************************
 
     //******************************backtrack phase******************************
+    int* my_part_result = new int[seq_size];
+    int curr_state;
+    //prepare a state_to_int table
+    map<string, int> state_to_int;
+    for (int i = 0; i < state_list.size(); i++)
+        state_to_int[state_list[i]] = i;
+
+    //if this is not the last node, recv the state from next node, else calculate the most possible last state
+    if (my_rank != num_nodes-1) 
+        MPI_Recv(&curr_state, 1, MPI_INT, my_rank+1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    else
+    {
+        double bestprob = viterbi[seq_size-1][0];
+        for (int i = 0; i < state_size; i++)
+        {
+            if (viterbi[seq_size-1][i] > bestprob)
+            {
+                bestprob = viterbi[seq_size-1][i];
+                curr_state = i;
+            }
+        }
+    }
+
+    //backtrack
+    for (int i = seq_size; i > 0; i--)
+    {
+        my_part_result[i-1] = state_list[curr_state];
+        curr_state = pred[i-1][curr_state];
+    }
+    
+    //if this is not the first node, send the curr_state to previous node
+    if (my_rank != ROOT)
+        MPI_Send(&curr_state, 1, MPI_INT, my_rank-1, TAG, MPI_COMM_WORLD);
+    
+    //the root gathers all "my_part_result" and put them together
+    int total_size = seq_size * num_nodes;
+    int* result_array = new int[total_size];
+    MPI_Gather(my_part_result, seq_size, MPI_INT, result_array, seq_size, MPI_INT, ROOT, MPI_COMM_WORLD);
+
+    vector<string> result(total_size);
+    for (int i = 0; i < total_size; i++)
+        result[i] = state_list[result_array[i]];
+
+    delete [] my_part_result;
+    delete [] result_array;
     //******************************backtrack phase******************************
 
     //runtime output
@@ -190,6 +235,15 @@ int main(int argc, char *argv[])
         if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
         time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
         cout << "Parallel Viterbi takes " << time << " s." << endl;
+
+        cout << "Output of vanilla" << endl;
+        for (string str: vanilla_ans)
+            cout << str << " ";
+        cout << endl;
+        cout << "Output of MPI" << endl;
+        for (string str: result)
+            cout << str << " ";
+        cout << endl;
     }
 
     MPI_Finalize();
