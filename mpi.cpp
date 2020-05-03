@@ -224,10 +224,19 @@ int main(int argc, char *argv[])
     vector<string> result(total_size);
     for (int i = 0; i < total_size; i++)
         result[i] = state_list[result_array[i]];
+    //******************************backtrack phase******************************
 
+    //******************************clean up******************************
     delete [] my_part_result;
     delete [] result_array;
-    //******************************backtrack phase******************************
+    for (int i = 0; i < seq_size; i++)
+    {
+        delete [] viterbi[i];
+        delete [] pred[i];
+    }
+    delete [] viterbi;
+    delete [] pred;
+    //******************************clean up******************************
 
     //runtime output
     if (my_rank == ROOT)
@@ -247,16 +256,6 @@ int main(int argc, char *argv[])
     }
 
     MPI_Finalize();
-
-    //clean up
-    for (int i = 0; i < seq_size; i++)
-    {
-        delete [] viterbi[i];
-        delete [] pred[i];
-    }
-    delete [] viterbi;
-    delete [] pred;
-    
     return 0;
 }
 
