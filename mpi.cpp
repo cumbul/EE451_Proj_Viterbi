@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
         MPI_Finalize();
         return 0;
     }
+    srand(time(NULL));
 
     HMM hmm;
     vector<string> seq, vanilla_ans;
