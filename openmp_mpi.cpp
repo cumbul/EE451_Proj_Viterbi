@@ -23,7 +23,7 @@ bool isParallel(double* A, double* B, int size);
 int main(int argc, char *argv[])
 {
     //change the parameter here
-    int num_state = 4, num_obs = 4, seq_length = 16, num_cores = 2;
+    int num_state = 4, num_obs = 4, seq_length = 16, num_cores_per_node = 2;
 
     MPI_Init(&argc, &argv);
     int num_nodes;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     //******************************vanilla******************************
     if (my_rank == ROOT)
     {
-        cout << "Openmp_mpi : Using " << num_cores << " processors." << endl;
+        cout << "Openmp_mpi : Using " << num_cores_per_node << " processors." << endl;
         hmm = Util::getRandomHMM(num_state, num_obs);
         seq = Util::getRandomSequence(hmm, seq_length);
 
@@ -91,12 +91,12 @@ int main(int argc, char *argv[])
 	        pred[i][j] = 0;
 
     //forward viterbi
-    #pragma omp parallel num_threads(num_cores) shared(viterbi, pred, hmm, state_list, seq_size)
+    #pragma omp parallel num_threads(num_cores_per_node) shared(viterbi, pred, hmm, state_list, seq_size)
     {
         int tid = omp_get_thread_num();
         double previous_stage[state_size], hold[state_size];
-        int left_p = (my_rank == ROOT && tid == 0)? 1: (seq_size / num_cores) * tid;
-        int right_p = min((seq_size / num_cores) * (tid + 1), seq_size);
+        int left_p = (my_rank == ROOT && tid == 0)? 1: (seq_size / num_cores_per_node) * tid;
+        int right_p = min((seq_size / num_cores_per_node) * (tid + 1), seq_size);
 
         //Only the first node and the first core gets the true initial probabilities. Other node will get a random vector.
         if (my_rank == ROOT && tid == 0)
@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
 
     //******************************fixing phase******************************
     bool all_nodes_converged = false;
-    bool my_cores_converged[num_cores];
+    bool my_cores_converged[num_cores_per_node];
     double vector_from_previous_node[state_size];
     while (!all_nodes_converged)
     {
@@ -161,12 +161,12 @@ int main(int argc, char *argv[])
         if (my_rank != ROOT)
             MPI_Recv(vector_from_previous_node, state_size, MPI_DOUBLE, my_rank-1, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        #pragma omp parallel num_threads(num_cores) shared(viterbi, pred, hmm, state_list, seq_size, my_cores_converged)
+        #pragma omp parallel num_threads(num_cores_per_node) shared(viterbi, pred, hmm, state_list, seq_size, my_cores_converged)
         {
             int tid = omp_get_thread_num();
             double previous_stage[state_size], hold[state_size];
-            int left_p = (seq_size / num_cores) * tid;
-            int right_p = min((seq_size / num_cores) * (tid + 1), seq_size);
+            int left_p = (seq_size / num_cores_per_node) * tid;
+            int right_p = min((seq_size / num_cores_per_node) * (tid + 1), seq_size);
 
             //the first core of first node has converged, so nothing needs to be done
             if (my_rank == ROOT && tid == 0)
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
                 memcpy(viterbi[i], hold, sizeof(double) * state_size);
             }
         }
-        MPI_Allreduce(my_cores_converged, &all_nodes_converged, num_cores, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);        
+        MPI_Allreduce(my_cores_converged, &all_nodes_converged, num_cores_per_node, MPI::BOOL, MPI_LAND, MPI_COMM_WORLD);        
     }
     //******************************fixing phase******************************
 
