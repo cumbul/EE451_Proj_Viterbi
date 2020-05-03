@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
         vector<string> result(total_size);
         for (int i = 0; i < total_size; i++)
             result[i] = state_list[result_array[i]];
-            
+
         if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
         time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
         cout << "Parallel Viterbi takes " << time << " s." << endl;
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
         bool correct = true;
         for (int i = 0; i < seq_length; i++)
         {
-            if (vanilla_ans[i].compare(ltdp_ans[i]) != 0)
+            if (vanilla_ans[i].compare(result[i]) != 0)
             {
                 correct = false;
                 break;
