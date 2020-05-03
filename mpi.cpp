@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
     //backtrack
     for (int i = seq_size; i > 0; i--)
     {
-        my_part_result[i-1] = state_list[curr_state];
+        my_part_result[i-1] = state_to_int[state_list[curr_state]];
         curr_state = pred[i-1][curr_state];
     }
     
