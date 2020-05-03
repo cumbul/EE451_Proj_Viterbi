@@ -12,7 +12,7 @@ using namespace std;
 int main()
 {
     //change the parameter here
-    int num_state = 40, num_obs = 80, seq_length = 1200, num_cores = 2;
+    int num_state = 40, num_obs = 80, seq_length = 1024, num_cores = 2;
 
     HMM hmm = Util::getRandomHMM(num_state, num_obs);
     vector<string> seq = Util::getRandomSequence(hmm, seq_length);
@@ -29,7 +29,7 @@ int main()
     cout << "Vanilla Viterbi takes " << time << "s." << endl;    
     
     cout << "Parallel Viterbi: " << endl;
-    LTDPViterbi ltdp_viterbi(hmm, num_cores);
+    LTDPViterbi_Oblivious ltdp_viterbi(hmm, num_cores);
     if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) { perror( "clock gettime" );}
     vector<string> ltdp_ans = ltdp_viterbi.solve(seq);
     if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror( "clock gettime" );}
